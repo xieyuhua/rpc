@@ -7,4 +7,4 @@ $rpc = new Goridge\RPC(
     new Goridge\SocketRelay('127.0.0.1', 6001)
 );
 
-echo $rpc->call('App.Hi', 'Antony');
+echo $rpc->call('App.Select', 'SELECT * FROM  `login_log` ');
