@@ -1,0 +1,28 @@
+// syntax 是指定使用哪一种 protobuf 服务, 现在使用的都是 "proto3"
+syntax = "proto3";
+
+// 包名, 这个不是很重要, 你删掉也是无所谓的
+package test;
+
+// 编写服务, 每个服务里面有相应的函数(对应 restful 视图函数)
+// service 表示创建服务
+service Matsuri {
+  //使用 rpc 定义函数, 参数名为 matsuri_request, 返回值为 matsuri_response
+  rpc hello_matsuri(matsuri_request) returns (matsuri_response){}
+}
+// 所以我们是创建了一个名为 Matsuri 的服务, 服务里面有一个 hello_matsuri 的函数
+// 函数接收一个名为 matsuri_request 的参数, 并返回一个 matsuri_response, 至于结尾的 {} 我们后面再说
+// 另外参数 matsuri_request、返回值 matsuri_response 是哪里来的呢? 所以我们还要进行定义
+
+// 注意: matsuri_request 虽然是参数, 但我个人更愿意把它称之为参数的载体
+// 比如下面定义两个变量 name 和 age, 客户端会把它们放在 matsuri_request 里面, 在服务端中也会通过 matsuri_request 来获取
+message matsuri_request {
+  string name = 1; // = 1表示第1个参数
+  int32 age = 2;
+}
+
+// matsuri_response 同理, 虽然它是返回值, 但我们返回的显然是 result, 只不过需要放在 matsuri_response 里面
+// 具体内容在代码中会有体现
+message matsuri_response {
+  string result = 1;
+}
