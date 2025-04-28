@@ -1,5 +1,6 @@
 <?php
 use Swoole\Server;
+use Swoole\Timer;
 
 class JsonRpcServer {
     private $server;
@@ -25,6 +26,7 @@ class JsonRpcServer {
     // 配置协议参数
     private function configureProtocol() : void {
         $this->server->set([
+            'reload_async' => true,            
             'worker_num' => $this->config['worker_num'],
             'open_length_check'     => false,
             'package_length_type'    => 'N',  // 4字节大端序长度头:ml-citation{ref="4,8" data="citationList"}
@@ -86,6 +88,11 @@ class JsonRpcServer {
 
         $this->server->start();
     }
+    // reload 平滑重启
+    public function reload() : void {
+        // echo date('Y-m-d H:i:s').'  reload'.PHP_EOL;
+        $this->server->reload();
+    }    
 }
 
 
@@ -98,5 +105,27 @@ $server->register('add', function ($params) {
     }
     return $params[0] + $params[1];
 });
+
+// 文件路径
+$filename = './swoole.php';
+// 定时器间隔，例如10秒
+$interval = 500; // 毫秒为单位
+
+
+// 设置定时器
+ Timer::tick($interval, function() use ($server, $interval, $filename) {
+    if (file_exists($filename)) {
+        //清楚文件缓存
+        clearstatcache(true, $filename);
+        $filemtime =  filemtime($filename);
+        if($filemtime > time()-1 ){
+            $server->reload();
+        }
+    } else {
+        echo "File does not exist.\n";
+    }
+});
+
+
 $server->start();
 
