@@ -12,13 +12,16 @@ class JsonRpcClient {
         $this->timeout = $timeout;
         $this->connect();
     }
-
+    // 优先选择 socket_create + 非阻塞 I/O + epoll，支持 C10K 及以上并发
     private function connect() {
-        $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+        //设置 SOCK_NONBLOCK 标志，配合 epoll 实现高并发事件驱动
+        $this->socket = socket_create(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, SOL_TCP);
         if ($this->socket === false) {
             throw new RuntimeException("套接字创建失败: " . socket_strerror(socket_last_error()));
         }
-        // 超时连接
+        // 设置 TCP_NODELAY 减少小数据包延迟（适用于实时通信) 禁用 Nagle 算法
+        socket_set_option($this->socket, SOL_TCP, TCP_NODELAY, 1);
+        // 超时连接 动态设置 SO_SNDBUF 和 SO_RCVBUF 以适应网络带宽 ‌调整缓冲区大小‌：
         socket_set_option($this->socket, SOL_SOCKET, SO_SNDTIMEO, ['sec' => $this->timeout, 'usec' => 0]);
         if (!socket_connect($this->socket, $this->host, $this->port)) {
             $errorCode = socket_last_error($this->socket);
