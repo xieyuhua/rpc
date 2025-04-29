@@ -1,6 +1,7 @@
 import socket
 import json
 import threading
+import lz4.frame
 
 # ====================== 路由核心模块 ======================
 class Router:
@@ -32,10 +33,10 @@ def handle_connection(conn):
             request_str, sep, remaining = buffer.partition(b'\n')
             if not sep:
                 break
-
             try:
                 request = json.loads(request_str)
                 response = process_request(request)
+                # response = lz4.frame.compress(response)  # 发送前压缩
                 conn.sendall(json.dumps(response).encode() + b'\n')
             except Exception as e:
                 error_resp = {
@@ -80,10 +81,18 @@ class HelloService:
 # ====================== 服务器启动模块 ======================
 if __name__ == "__main__":
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # 设置地址复用 避免 Address already in use 错误，允许端口快速释放后重新绑定：
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
     server.bind(("0.0.0.0", 6023))
     server.listen(5)
+    # 调整缓冲区大小 根据网络带宽和延迟需求，优化接收/发送缓冲区：
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024 * 1024)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024 * 1024)
+    # 启用非阻塞模式 提升高并发场景处理能力，需配合事件循环（如 select 或 asyncio）：
+    # server.setblocking(False) 
     print("JSON-RPC server started on port 6023")
     while True:
         conn, addr = server.accept()
         print(f"New connection from {addr}")
+        #‌ 多线程/进程模型  每个连接分配独立线程/进程，避免阻塞主线程：
         threading.Thread(target=handle_connection, args=(conn,)).start()
